@@ -28,8 +28,8 @@ app = FastAPI(
     version=settings.VERSION,
     description="DocuMind AI: Production-grade Intelligent Document SaaS API with pgvector RAG",
     lifespan=lifespan,
-    docs_url="/api/docs",
-    openapi_url="/api/openapi.json"
+    docs_url="/docs",
+    openapi_url="/openapi.json"
 )
 
 # Setup CORS
@@ -47,6 +47,14 @@ app.include_router(documents.router, prefix=f"{settings.API_V1_STR}/documents", 
 app.include_router(chat.router, prefix=settings.API_V1_STR, tags=["Chat"])
 app.include_router(collections.router, prefix=f"{settings.API_V1_STR}/collections", tags=["Collections"])
 app.include_router(health.router, prefix=settings.API_V1_STR, tags=["Health"])
+
+# Dual-routing fallback: support requests when serverless proxy strips /api prefix
+if settings.API_V1_STR == "/api":
+    app.include_router(auth.router, prefix="/auth", include_in_schema=False)
+    app.include_router(documents.router, prefix="/documents", include_in_schema=False)
+    app.include_router(chat.router, prefix="", include_in_schema=False)
+    app.include_router(collections.router, prefix="/collections", include_in_schema=False)
+    app.include_router(health.router, prefix="", include_in_schema=False)
 
 @app.get("/")
 def root():

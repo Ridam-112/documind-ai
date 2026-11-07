@@ -10,6 +10,11 @@ logger = logging.getLogger(__name__)
 # Determine active database URL: if postgresql is requested but fails to connect on init,
 # fallback gracefully to sqlite for development/testing if enabled
 DATABASE_URL = settings.DATABASE_URL
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
+elif DATABASE_URL.startswith("postgresql://") and not DATABASE_URL.startswith("postgresql+"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
+
 
 # Check if pgvector is available
 try:

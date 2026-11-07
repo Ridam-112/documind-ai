@@ -6,7 +6,12 @@ from fastapi import UploadFile, HTTPException
 from app.core.config import settings
 
 class StorageService:
-    def __init__(self, base_dir: str = settings.UPLOAD_DIR):
+    def __init__(self, base_dir: str = None):
+        if base_dir is None:
+            if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+                base_dir = "/tmp/uploads"
+            else:
+                base_dir = settings.UPLOAD_DIR
         self.base_dir = Path(base_dir)
         self.base_dir.mkdir(parents=True, exist_ok=True)
 

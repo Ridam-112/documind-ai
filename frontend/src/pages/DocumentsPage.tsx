@@ -35,6 +35,26 @@ export const DocumentsPage: React.FC = () => {
     fetchDocs();
   }, [search]);
 
+  // Auto-poll if any document is processing
+  useEffect(() => {
+    const hasProcessing = documents.some(
+      (d) =>
+        d.processing_status === 'uploading' ||
+        d.processing_status === 'queued' ||
+        d.processing_status === 'extracting' ||
+        d.processing_status === 'chunking' ||
+        d.processing_status === 'embedding'
+    );
+
+    if (!hasProcessing) return;
+
+    const interval = setInterval(() => {
+      fetchDocs();
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [documents]);
+
   const handleDelete = async (id: string, title: string) => {
     if (window.confirm(`Delete "${title}"?`)) {
       try {

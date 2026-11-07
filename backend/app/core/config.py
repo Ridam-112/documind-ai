@@ -1,9 +1,15 @@
 import os
 from typing import List, Optional
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=(".env", "backend/.env", ".env.local"),
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
+
     PROJECT_NAME: str = "DocuMind AI"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api"
@@ -48,10 +54,5 @@ class Settings(BaseSettings):
         "http://localhost:4173",
         "*"
     ]
-
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
-        extra = "ignore"
 
 settings = Settings()
