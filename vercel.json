@@ -1,5 +1,5 @@
 {
-  "buildCommand": "(test -d frontend && cd frontend || true) && npm run build",
+  "buildCommand": "npm --prefix frontend run build",
   "outputDirectory": "frontend/dist",
   "functions": {
     "api/index.py": {

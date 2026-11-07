@@ -2,7 +2,10 @@
   "name": "documind-ai",
   "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "frontend"
+  ],
   "scripts": {
-    "build": "(test -d frontend && cd frontend || true) && npm run build"
+    "build": "npm --prefix frontend run build"
   }
 }
