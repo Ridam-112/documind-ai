@@ -28,39 +28,6 @@ class RetrievalService:
         Retrieves top K most similar chunks for a specific document belonging to user_id.
         Works across both PostgreSQL with pgvector and SQLite with vector fallback.
         """
-        bind = db.get_bind()
-        dialect_name = bind.dialect.name if bind else ""
-
-        # Try native pgvector query if on postgresql
-        if dialect_name == "postgresql":
-            try:
-                # Using cosine distance operator
-                stmt = (
-                    db.query(DocumentChunk)
-                    .filter(
-                        DocumentChunk.document_id == document_id,
-                        DocumentChunk.user_id == user_id
-                    )
-                    .order_by(DocumentChunk.embedding.cosine_distance(query_embedding))
-                    .limit(top_k)
-                )
-                results = stmt.all()
-                return [
-                    {
-                        "id": chunk.id,
-                        "document_id": chunk.document_id,
-                        "page_start": chunk.page_start,
-                        "page_end": chunk.page_end,
-                        "content": chunk.content,
-                        "token_count": chunk.token_count,
-                        "score": 1.0  # approximate
-                    }
-                    for chunk in results
-                ]
-            except Exception as e:
-                logger.warning(f"Native pgvector query failed ({e}), falling back to in-memory cosine similarity.")
-
-        # Fallback for SQLite / generic SQL:
         chunks = (
             db.query(DocumentChunk)
             .filter(

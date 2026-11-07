@@ -1,8 +1,11 @@
 import os
+import logging
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 from app.core.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
@@ -15,7 +18,6 @@ router = APIRouter()
 
 @router.post("/upload", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
 async def upload_document(
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     title: Optional[str] = None,
     current_user: User = Depends(get_current_user),
@@ -33,15 +35,19 @@ async def upload_document(
         file_size=file_size,
         page_count=0,
         mime_type="application/pdf",
-        processing_status="queued"
+        processing_status="processing"
     )
     db.add(doc)
     db.commit()
     db.refresh(doc)
 
-    # Trigger background ingestion pipeline
-    background_tasks.add_task(process_document_pipeline, doc.id)
+    # In serverless environment, process document immediately so pages and vectors are ready
+    try:
+        await process_document_pipeline(doc.id)
+    except Exception as e:
+        logger.error(f"Error during document ingestion: {e}")
 
+    db.refresh(doc)
     return DocumentResponse.model_validate(doc)
 
 @router.get("", response_model=List[DocumentResponse])
