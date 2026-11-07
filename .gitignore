@@ -1,0 +1,56 @@
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.pytest_cache/
+
+# Node & Frontend
+node_modules/
+frontend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+dist/
+frontend/dist/
+dist-ssr/
+*.tsbuildinfo
+frontend/*.tsbuildinfo
+
+# Database & SQLite files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+documind.db
+backend/documind.db
+test_documind.db
+
+# User Uploads & Temporary Storage
+uploads/
+backend/uploads/
+test_uploads/
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
