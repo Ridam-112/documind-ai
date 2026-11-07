@@ -21,9 +21,10 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
     # AI & Embeddings Configuration
-    LLM_PROVIDER: str = "openai"  # openai, gemini, or mock
+    LLM_PROVIDER: str = "groq"  # groq, ollama, openai, gemini, or mock
     LLM_API_KEY: Optional[str] = None
-    LLM_MODEL: str = "gpt-4o-mini"
+    LLM_MODEL: str = "qwen/qwen3.8-27b"
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
 
     EMBEDDING_PROVIDER: str = "openai"  # openai, gemini, local, or mock
     EMBEDDING_API_KEY: Optional[str] = None

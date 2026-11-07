@@ -108,7 +108,11 @@ export const SettingsPage: React.FC = () => {
                 <span className="text-slate-400 block mb-1">LLM Provider & Model</span>
                 <div className="font-semibold text-slate-800 dark:text-slate-200 flex items-center justify-between">
                   <span className="capitalize">{health.llm_provider} ({health.llm_model})</span>
-                  {health.llm_key_configured ? (
+                  {health.llm_provider === 'ollama' ? (
+                    <span className="inline-flex items-center gap-1 text-2xs text-emerald-600 dark:text-emerald-400">
+                      <CheckCircle2 className="w-3 h-3" /> 100% Local (Free)
+                    </span>
+                  ) : health.llm_key_configured ? (
                     <span className="inline-flex items-center gap-1 text-2xs text-emerald-600 dark:text-emerald-400">
                       <CheckCircle2 className="w-3 h-3" /> Key Active
                     </span>

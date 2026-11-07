@@ -49,9 +49,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   
   // AI Config Modal state
   const [showConfigModal, setShowConfigModal] = useState(false);
-  const [aiProvider, setAiProvider] = useState<'mock' | 'gemini' | 'openai'>('mock');
+  const [aiProvider, setAiProvider] = useState<'mock' | 'gemini' | 'openai' | 'groq' | 'ollama'>('groq');
   const [apiKey, setApiKey] = useState('');
-  const [aiModel, setAiModel] = useState('gemini-1.5-flash');
+  const [aiModel, setAiModel] = useState('qwen/qwen3.8-27b');
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [configSuccess, setConfigSuccess] = useState(false);
 
@@ -71,7 +71,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     const fetchAISettings = async () => {
       try {
         const s = await api.settings.getAI();
-        if (s.llm_provider === 'gemini') {
+        if (s.llm_provider === 'groq') {
+          setAiProvider('groq');
+          setAiModel(s.llm_model || 'qwen/qwen3.8-27b');
+        } else if (s.llm_provider === 'ollama') {
+          setAiProvider('ollama');
+          setAiModel(s.llm_model || 'llama3.2');
+        } else if (s.llm_provider === 'gemini') {
           setAiProvider('gemini');
           setAiModel(s.llm_model || 'gemini-1.5-flash');
         } else if (s.llm_provider === 'openai') {
@@ -115,10 +121,21 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     setConfigSuccess(false);
 
     try {
+      const defaultModel =
+        aiProvider === 'groq'
+          ? 'qwen/qwen3.8-27b'
+          : aiProvider === 'ollama'
+          ? 'llama3.2'
+          : aiProvider === 'gemini'
+          ? 'gemini-1.5-flash'
+          : aiProvider === 'openai'
+          ? 'gpt-4o-mini'
+          : 'mock';
+
       await api.settings.updateAI({
         llm_provider: aiProvider,
         llm_api_key: apiKey,
-        llm_model: aiProvider === 'gemini' ? (aiModel || 'gemini-1.5-flash') : aiProvider === 'openai' ? (aiModel || 'gpt-4o-mini') : 'mock',
+        llm_model: aiModel.trim() || defaultModel,
       });
       setConfigSuccess(true);
       setTimeout(() => {
@@ -239,7 +256,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                 className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-3xs font-semibold bg-brand-50 hover:bg-brand-100 dark:bg-brand-950/70 text-brand-600 dark:text-brand-300 border border-brand-200 dark:border-brand-800"
               >
                 <Sparkles className="w-2.5 h-2.5" />
-                <span className="capitalize">{aiProvider === 'mock' ? 'Smart Local' : aiProvider}</span>
+                <span className="capitalize">
+                  {aiProvider === 'groq'
+                    ? 'Qwen Open Source'
+                    : aiProvider === 'ollama'
+                    ? 'Ollama (Local)'
+                    : aiProvider === 'mock'
+                    ? 'Smart Local'
+                    : aiProvider}
+                </span>
               </button>
             </h3>
             <p className="text-3xs text-slate-400 dark:text-slate-500 truncate">
@@ -505,70 +530,150 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
             <form onSubmit={handleSaveAISettings} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                   Choose AI Engine
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   <button
                     type="button"
-                    onClick={() => setAiProvider('mock')}
-                    className={`p-2.5 rounded-xl border text-xs font-medium transition-all ${
-                      aiProvider === 'mock'
-                        ? 'border-brand-500 bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-300'
-                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                    onClick={() => {
+                      setAiProvider('groq');
+                      setAiModel('qwen/qwen3.8-27b');
+                    }}
+                    className={`p-2.5 rounded-xl border text-left text-xs transition-all ${
+                      aiProvider === 'groq'
+                        ? 'border-brand-500 bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-300 shadow-2xs font-bold'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
                     }`}
                   >
-                    Smart Local
+                    <div className="flex items-center gap-1 font-semibold">
+                      <span>🚀 Groq Open-Source</span>
+                    </div>
+                    <span className="text-3xs font-normal text-slate-400 block mt-0.5">Qwen 27B / GPT-OSS 120B (Ultra Fast)</span>
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAiProvider('ollama');
+                      setAiModel('llama3.2');
+                    }}
+                    className={`p-2.5 rounded-xl border text-left text-xs transition-all ${
+                      aiProvider === 'ollama'
+                        ? 'border-brand-500 bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-300 shadow-2xs font-bold'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1 font-semibold">
+                      <span>💻 Ollama Local</span>
+                    </div>
+                    <span className="text-3xs font-normal text-slate-400 block mt-0.5">100% Free, Offline, No Keys</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => {
                       setAiProvider('gemini');
                       setAiModel('gemini-1.5-flash');
                     }}
-                    className={`p-2.5 rounded-xl border text-xs font-medium transition-all ${
+                    className={`p-2.5 rounded-xl border text-left text-xs transition-all ${
                       aiProvider === 'gemini'
-                        ? 'border-brand-500 bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-300'
-                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                        ? 'border-brand-500 bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-300 shadow-2xs font-bold'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
                     }`}
                   >
-                    Google Gemini
+                    <div className="flex items-center gap-1 font-semibold">
+                      <span>Google Gemini</span>
+                    </div>
+                    <span className="text-3xs font-normal text-slate-400 block mt-0.5">Gemini 1.5 Flash</span>
                   </button>
+
                   <button
                     type="button"
                     onClick={() => {
                       setAiProvider('openai');
                       setAiModel('gpt-4o-mini');
                     }}
-                    className={`p-2.5 rounded-xl border text-xs font-medium transition-all ${
+                    className={`p-2.5 rounded-xl border text-left text-xs transition-all ${
                       aiProvider === 'openai'
-                        ? 'border-brand-500 bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-300'
-                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                        ? 'border-brand-500 bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-300 shadow-2xs font-bold'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
                     }`}
                   >
-                    OpenAI
+                    <div className="flex items-center gap-1 font-semibold">
+                      <span>OpenAI</span>
+                    </div>
+                    <span className="text-3xs font-normal text-slate-400 block mt-0.5">GPT-4o Mini</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAiProvider('mock')}
+                    className={`p-2.5 rounded-xl border text-left text-xs transition-all ${
+                      aiProvider === 'mock'
+                        ? 'border-brand-500 bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-300 shadow-2xs font-bold'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1 font-semibold">
+                      <span>⚡ Smart Local</span>
+                    </div>
+                    <span className="text-3xs font-normal text-slate-400 block mt-0.5">Extractive Grounding (Zero Setup)</span>
                   </button>
                 </div>
               </div>
 
-              {aiProvider !== 'mock' ? (
+              {aiProvider === 'ollama' ? (
+                <div className="space-y-3">
+                  <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs text-emerald-800 dark:text-emerald-300">
+                    <p className="font-semibold mb-1">100% Free Open-Source Local AI Active</p>
+                    <p className="text-2xs text-emerald-700 dark:text-emerald-400">
+                      Ollama connects to your machine at <code>http://localhost:11434</code>. No API key is needed. You can run <code>ollama run llama3.2</code> or <code>ollama run mistral</code>.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Local Model Name
+                    </label>
+                    <input
+                      type="text"
+                      value={aiModel}
+                      onChange={(e) => setAiModel(e.target.value)}
+                      placeholder="llama3.2 or mistral or deepseek-r1"
+                      className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-brand-500 font-mono"
+                    />
+                  </div>
+                </div>
+              ) : aiProvider !== 'mock' ? (
                 <>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      {aiProvider === 'gemini' ? 'Google Gemini API Key' : 'OpenAI API Key'}
+                      {aiProvider === 'groq'
+                        ? 'Groq API Key'
+                        : aiProvider === 'gemini'
+                        ? 'Google Gemini API Key'
+                        : 'OpenAI API Key'}
                     </label>
                     <div className="relative">
                       <Key className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
                       <input
                         type="password"
-                        placeholder={aiProvider === 'gemini' ? 'AIzaSy...' : 'sk-...'}
+                        placeholder={
+                          aiProvider === 'groq'
+                            ? 'gsk_...'
+                            : aiProvider === 'gemini'
+                            ? 'AIzaSy...'
+                            : 'sk-...'
+                        }
                         value={apiKey}
                         onChange={(e) => setApiKey(e.target.value)}
-                        className="w-full pl-8 pr-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-brand-500"
+                        className="w-full pl-8 pr-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-brand-500 font-mono"
                       />
                     </div>
                     <p className="text-3xs text-slate-400 mt-1">
-                      {aiProvider === 'gemini'
+                      {aiProvider === 'groq'
+                        ? 'Fastest open-source hosting at console.groq.com'
+                        : aiProvider === 'gemini'
                         ? 'Get a free API key at aistudio.google.com'
                         : 'Get your key at platform.openai.com'}
                     </p>
@@ -584,6 +689,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                       onChange={(e) => setAiModel(e.target.value)}
                       className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-brand-500 font-mono"
                     />
+                    {aiProvider === 'groq' && (
+                      <p className="text-3xs text-slate-400 mt-1">
+                        Recommended: <code>qwen/qwen3.8-27b</code> (Document Q&A champion) or <code>openai/gpt-oss-120b</code> (Reasoning)
+                      </p>
+                    )}
                   </div>
                 </>
               ) : (

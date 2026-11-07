@@ -56,8 +56,11 @@ class LLMService:
         context_chunks: List[Dict[str, Any]],
         conversation_history: Optional[List[Dict[str, str]]] = None
     ) -> str:
+        # If Ollama is selected (100% free open-source local inference)
+        if self.provider == "ollama":
+            return await self._call_ollama_with_context(prompt, context_chunks, conversation_history)
         # If API key is available for Groq, OpenAI or Gemini, call live API
-        if (self.provider == "groq" or (self.api_key and self.api_key.startswith("gsk_"))) and self.api_key:
+        elif (self.provider == "groq" or (self.api_key and self.api_key.startswith("gsk_"))) and self.api_key:
             return await self._call_groq_with_context(prompt, context_chunks, conversation_history)
         elif self.provider == "openai" and self.api_key:
             return await self._call_openai_with_context(prompt, context_chunks, conversation_history)
@@ -158,6 +161,54 @@ class LLMService:
             f"> *Tip: Click on any `[Page X]` citation above to jump directly to that page.*"
         )
 
+    async def _call_ollama_with_context(
+        self,
+        prompt: str,
+        context_chunks: List[Dict[str, Any]],
+        conversation_history: Optional[List[Dict[str, str]]] = None
+    ) -> str:
+        formatted_context = ""
+        for i, chunk in enumerate(context_chunks):
+            page_info = f"Page {chunk.get('page_start', '?')}"
+            formatted_context += f"\n--- EXCERPT {i+1} [{page_info}] ---\n{chunk.get('content', '')}\n"
+
+        user_content = (
+            f"DOCUMENT EXCERPTS:\n{formatted_context}\n\n"
+            f"USER QUESTION: {prompt}\n\n"
+            f"Please answer the user question using the document excerpts above. "
+            f"Include citations like [Page X] for every fact derived from the text."
+        )
+
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        if conversation_history:
+            for msg in conversation_history[-6:]:
+                messages.append({"role": msg["role"], "content": msg["content"]})
+        messages.append({"role": "user", "content": user_content})
+
+        ollama_base = getattr(settings, "OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+        url = f"{ollama_base}/api/chat"
+        model_name = self.model if (self.model and "/" not in self.model and "gpt" not in self.model) else "llama3.2"
+
+        payload = {
+            "model": model_name,
+            "messages": messages,
+            "stream": False,
+            "options": {
+                "temperature": 0.2
+            }
+        }
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            try:
+                response = await client.post(url, json=payload)
+                if response.status_code != 200:
+                    logger.error(f"Ollama API error ({response.status_code}): {response.text}")
+                    return self._generate_intelligent_offline_response(prompt, context_chunks)
+                data = response.json()
+                return data.get("message", {}).get("content", "")
+            except httpx.RequestError as e:
+                logger.error(f"Network error calling Ollama: {str(e)}")
+                return self._generate_intelligent_offline_response(prompt, context_chunks)
+
     async def _call_groq_with_context(
         self,
         prompt: str,
@@ -187,7 +238,10 @@ class LLMService:
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
-        model = self.model if (self.model and "llama" in self.model) else "llama-3.3-70b-versatile"
+        model = self.model if self.model else "qwen/qwen3.8-27b"
+        if "versatile" in model or "decommissioned" in model:
+            model = "qwen/qwen3.8-27b"
+
         payload = {
             "model": model,
             "messages": messages,
@@ -201,7 +255,9 @@ class LLMService:
                     logger.error(f"Groq API error ({response.status_code}): {response.text}")
                     return self._generate_intelligent_offline_response(prompt, context_chunks)
                 data = response.json()
-                return data["choices"][0]["message"]["content"]
+                msg = data.get("choices", [{}])[0].get("message", {})
+                content = msg.get("content") or msg.get("reasoning")
+                return content or self._generate_intelligent_offline_response(prompt, context_chunks)
             except httpx.RequestError as e:
                 logger.error(f"Network error calling Groq: {str(e)}")
                 return self._generate_intelligent_offline_response(prompt, context_chunks)
