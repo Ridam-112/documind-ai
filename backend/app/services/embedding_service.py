@@ -1,8 +1,9 @@
 import hashlib
 import logging
+import math
+import random
 from typing import List
 import httpx
-import numpy as np
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -20,23 +21,22 @@ class EmbeddingService:
     def _generate_mock_embedding(self, text: str) -> List[float]:
         """
         Deterministic unit vector generator for tests or offline development.
-        Generates consistent embeddings so identical or overlapping terms have higher similarity.
+        Pure Python implementation (zero external heavy C-dependencies).
         """
-        # Create base vector from hash
-        np.random.seed(int(hashlib.sha256(text.encode("utf-8")).hexdigest()[:8], 16))
-        vec = np.random.randn(self.dimensions).astype(np.float32)
+        seed = int(hashlib.sha256(text.encode("utf-8")).hexdigest()[:8], 16)
+        rng = random.Random(seed)
+        vec = [rng.gauss(0, 1) for _ in range(self.dimensions)]
 
-        # Mix in term frequencies for basic word-level overlap in tests
         words = text.lower().split()
-        for i, word in enumerate(words[:50]):
+        for word in words[:50]:
             word_hash = int(hashlib.md5(word.encode("utf-8")).hexdigest()[:6], 16)
             idx = word_hash % self.dimensions
             vec[idx] += 2.0
 
-        norm = np.linalg.norm(vec)
+        norm = math.sqrt(sum(x * x for x in vec))
         if norm > 0:
-            vec = vec / norm
-        return vec.tolist()
+            vec = [x / norm for x in vec]
+        return vec
 
     async def get_embeddings(self, texts: List[str]) -> List[List[float]]:
         if not texts:

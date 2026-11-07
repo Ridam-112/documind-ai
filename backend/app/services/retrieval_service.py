@@ -1,11 +1,19 @@
 import logging
+import math
 from typing import List, Dict, Any, Optional
-import numpy as np
 from sqlalchemy.orm import Session
 from app.models.chunk import DocumentChunk
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+def cosine_similarity(v1: List[float], v2: List[float]) -> float:
+    dot = sum(a * b for a, b in zip(v1, v2))
+    norm1 = math.sqrt(sum(a * a for a in v1))
+    norm2 = math.sqrt(sum(b * b for b in v2))
+    if norm1 == 0 or norm2 == 0:
+        return 0.0
+    return dot / (norm1 * norm2)
 
 class RetrievalService:
     def retrieve_relevant_chunks(
@@ -65,22 +73,11 @@ class RetrievalService:
         if not chunks:
             return []
 
-        query_vec = np.array(query_embedding, dtype=np.float32)
-        q_norm = np.linalg.norm(query_vec)
-        if q_norm == 0:
-            q_norm = 1.0
-
         scored_chunks = []
         for chunk in chunks:
             if chunk.embedding is None:
                 continue
-            chunk_vec = np.array(chunk.embedding, dtype=np.float32)
-            c_norm = np.linalg.norm(chunk_vec)
-            if c_norm == 0:
-                similarity = 0.0
-            else:
-                similarity = float(np.dot(query_vec, chunk_vec) / (q_norm * c_norm))
-
+            similarity = cosine_similarity(query_embedding, chunk.embedding)
             scored_chunks.append({
                 "id": chunk.id,
                 "document_id": chunk.document_id,

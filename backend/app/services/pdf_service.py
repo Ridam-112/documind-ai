@@ -3,18 +3,18 @@ import re
 from typing import List, Dict, Any
 
 try:
-    import fitz  # PyMuPDF
-    PYMUPDF_AVAILABLE = True
-except Exception:
-    PYMUPDF_AVAILABLE = False
-    fitz = None
-
-try:
     import pypdf
     PYPDF_AVAILABLE = True
 except Exception:
     PYPDF_AVAILABLE = False
     pypdf = None
+
+try:
+    import fitz  # PyMuPDF
+    PYMUPDF_AVAILABLE = True
+except Exception:
+    PYMUPDF_AVAILABLE = False
+    fitz = None
 
 logger = logging.getLogger(__name__)
 
@@ -65,16 +65,16 @@ def clean_extracted_text(text: str) -> str:
 
 class PdfService:
     def extract_text(self, file_path: str) -> Dict[str, Any]:
-        if PYMUPDF_AVAILABLE and fitz is not None:
-            try:
-                return self._extract_with_fitz(file_path)
-            except Exception as e:
-                logger.warning(f"PyMuPDF failed, falling back to pypdf: {e}")
-
         if PYPDF_AVAILABLE and pypdf is not None:
-            return self._extract_with_pypdf(file_path)
+            try:
+                return self._extract_with_pypdf(file_path)
+            except Exception as e:
+                logger.warning(f"pypdf extraction failed, trying fallback: {e}")
 
-        raise PdfExtractionError("No PDF extraction library available (neither PyMuPDF nor pypdf).")
+        if PYMUPDF_AVAILABLE and fitz is not None:
+            return self._extract_with_fitz(file_path)
+
+        raise PdfExtractionError("No PDF extraction library available.")
 
     def _extract_with_fitz(self, file_path: str) -> Dict[str, Any]:
         try:
